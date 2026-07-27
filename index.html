@@ -1237,9 +1237,18 @@
                 const parsed = JSON.parse(saved);
                 if (!Array.isArray(parsed)) return normalizeEvents(defaultEvents);
 
-                return normalizeEvents(parsed);
+                const normalized = normalizeEvents(parsed);
+                if (!normalized.length) return normalizeEvents(defaultEvents);
+
+                return normalized;
             } catch (e) {
                 return normalizeEvents(defaultEvents);
+            }
+        }
+
+        function ensureEventsNotEmpty() {
+            if (!events.length) {
+                events = normalizeEvents(defaultEvents);
             }
         }
 
@@ -1342,6 +1351,11 @@
 
             try {
                 const cloudEvents = await fetchEventsFromGoogle();
+                if (!cloudEvents.length) {
+                    console.warn('Google Sheets returned no events, keeping local list.');
+                    return false;
+                }
+
                 events = cloudEvents;
                 saveEventsToStorage();
                 return true;
@@ -1543,6 +1557,7 @@
             scrollArea.innerHTML = '<div class="calendar-loading">טוענת לוח... 📅</div>';
 
             try {
+                ensureEventsNotEmpty();
                 let targetYear = currentHebrewYear;
                 let targetMonth = currentHebrewMonth;
 
@@ -1800,6 +1815,7 @@
             try {
                 showRandomQuote();
                 events = loadEventsFromStorage();
+                ensureEventsNotEmpty();
                 renderCalendar();
 
                 if (!usesGoogleSheets()) return;
