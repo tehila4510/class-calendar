@@ -2,6 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>לוח השמחות הכיתתי</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -1253,6 +1254,7 @@
         }
 
         function saveEventsToStorage() {
+            ensureEventsNotEmpty();
             localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(events));
         }
 
@@ -1349,10 +1351,15 @@
         async function loadEventsFromGoogleInBackground() {
             if (!usesGoogleSheets()) return false;
 
+            const backupEvents = events.map((ev) => ({ ...ev }));
+
             try {
                 const cloudEvents = await fetchEventsFromGoogle();
                 if (!cloudEvents.length) {
                     console.warn('Google Sheets returned no events, keeping local list.');
+                    events = backupEvents;
+                    ensureEventsNotEmpty();
+                    saveEventsToStorage();
                     return false;
                 }
 
@@ -1361,6 +1368,8 @@
                 return true;
             } catch (e) {
                 console.warn('Google Sheets load failed, using local backup:', e);
+                events = backupEvents;
+                ensureEventsNotEmpty();
                 return false;
             }
         }
@@ -1818,10 +1827,13 @@
                 ensureEventsNotEmpty();
                 renderCalendar();
 
-                if (!usesGoogleSheets()) return;
+                if (!usesGoogleSheets()) {
+                    saveEventsToStorage();
+                    return;
+                }
 
                 const banner = document.getElementById('floatingBanner');
-                banner.innerText = '☁️ טוענת שמחות מהענן...';
+                banner.innerText = '☁️ מסנכרנת עם Google Sheets...';
 
                 const loadedFromCloud = await loadEventsFromGoogleInBackground();
                 if (loadedFromCloud) {
@@ -1831,6 +1843,8 @@
                 showRandomQuote();
             } catch (error) {
                 console.error(error);
+                ensureEventsNotEmpty();
+                renderCalendar();
                 document.getElementById('floatingBanner').innerText = 'משהו נתקע בטעינה – נסי F5';
             }
         }
