@@ -1127,7 +1127,7 @@
             return url.toString();
         }
 
-        async function fetchWithTimeout(url, timeoutMs = 15000) {
+        async function fetchWithTimeout(url, timeoutMs = 8000) {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -1198,18 +1198,26 @@
             return data;
         }
 
-        async function loadEvents() {
-            if (usesGoogleSheets()) {
-                try {
-                    events = await fetchEventsFromGoogle();
-                    saveEventsToStorage();
-                    return;
-                } catch (e) {
-                    console.warn('Google Sheets load failed, using local backup:', e);
-                }
-            }
+        async function loadEventsFromGoogleInBackground() {
+            if (!usesGoogleSheets()) return false;
 
+            try {
+                const cloudEvents = await fetchEventsFromGoogle();
+                events = cloudEvents;
+                saveEventsToStorage();
+                return true;
+            } catch (e) {
+                console.warn('Google Sheets load failed, using local backup:', e);
+                return false;
+            }
+        }
+
+        async function loadEvents() {
             events = loadEventsFromStorage();
+
+            if (usesGoogleSheets()) {
+                await loadEventsFromGoogleInBackground();
+            }
         }
 
         async function syncEventsAfterChange() {
@@ -1643,14 +1651,20 @@
         async function initApp() {
             showRandomQuote();
 
-            const banner = document.getElementById('floatingBanner');
-            const loadingText = usesGoogleSheets()
-                ? '☁️ טוענת שמחות מהענן...'
-                : banner.innerText;
-            banner.innerText = loadingText;
-
-            await loadEvents();
+            events = loadEventsFromStorage();
             renderCalendar();
+
+            if (!usesGoogleSheets()) return;
+
+            const banner = document.getElementById('floatingBanner');
+            banner.innerText = '☁️ טוענת שמחות מהענן...';
+
+            const loadedFromCloud = await loadEventsFromGoogleInBackground();
+            if (loadedFromCloud) {
+                renderCalendar();
+            }
+
+            showRandomQuote();
         }
 
         initApp();
