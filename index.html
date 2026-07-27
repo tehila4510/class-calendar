@@ -798,11 +798,40 @@
             "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
         ];
 
-        const hebrewPartsFormatter = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-        });
+        const hebrewMonthStarts = {"5784::תשרי":"2023-09-15","5784::חשוון":"2023-10-15","5784::כסלו":"2023-11-13","5784::טבת":"2023-12-12","5784::שבט":"2024-01-10","5784::אדר א׳":"2024-02-09","5784::אדר ב׳":"2024-03-10","5784::ניסן":"2024-04-08","5784::אייר":"2024-05-08","5784::סיוון":"2024-06-06","5784::תמוז":"2024-07-06","5784::אב":"2024-08-04","5784::אלול":"2024-09-03","5785::תשרי":"2024-10-02","5785::חשוון":"2024-11-01","5785::כסלו":"2024-12-01","5785::טבת":"2024-12-31","5785::שבט":"2025-01-29","5785::אדר":"2025-02-28","5785::ניסן":"2025-03-29","5785::אייר":"2025-04-28","5785::סיוון":"2025-05-27","5785::תמוז":"2025-06-26","5785::אב":"2025-07-25","5785::אלול":"2025-08-23","5786::תשרי":"2025-09-22","5786::חשוון":"2025-10-22","5786::כסלו":"2025-11-20","5786::טבת":"2025-12-20","5786::שבט":"2026-01-18","5786::אדר":"2026-02-17","5786::ניסן":"2026-03-18","5786::אייר":"2026-04-17","5786::סיוון":"2026-05-16","5786::תמוז":"2026-06-15","5786::אב":"2026-07-15","5786::אלול":"2026-08-13","5787::תשרי":"2026-09-11","5787::חשוון":"2026-10-11","5787::כסלו":"2026-11-10","5787::טבת":"2026-12-10","5787::שבט":"2027-01-08","5787::אדר א׳":"2027-02-07","5787::אדר ב׳":"2027-03-09","5787::ניסן":"2027-04-07","5787::אייר":"2027-05-07","5787::סיוון":"2027-06-05","5787::תמוז":"2027-07-05","5787::אב":"2027-08-03","5787::אלול":"2027-09-02","5788::תשרי":"2027-10-01","5788::חשוון":"2027-10-31","5788::כסלו":"2027-11-30","5788::טבת":"2027-12-30","5788::שבט":"2028-01-28","5788::אדר":"2028-02-27","5788::ניסן":"2028-03-27","5788::אייר":"2028-04-26","5788::סיוון":"2028-05-25","5788::תמוז":"2028-06-24","5788::אב":"2028-07-23"};
+
+        const gregorianMonthNames = new Set([
+            "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+            "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
+        ]);
+
+        let hebrewPartsFormatter = null;
+        let hebrewCalendarSupported = false;
+
+        try {
+            hebrewPartsFormatter = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+            const testParts = hebrewPartsFormatter.formatToParts(new Date(2026, 6, 28));
+            const testMonth = testParts.find((part) => part.type === 'month');
+            const testDay = testParts.find((part) => part.type === 'day');
+            hebrewCalendarSupported = Boolean(
+                testMonth &&
+                testDay &&
+                !gregorianMonthNames.has(testMonth.value)
+            );
+        } catch (e) {
+            hebrewCalendarSupported = false;
+        }
+
+        const hebrewMonthsSorted = Object.entries(hebrewMonthStarts)
+            .map(([key, startDate]) => {
+                const [year, month] = key.split('::');
+                return { year: Number(year), month, startDate, key };
+            })
+            .sort((a, b) => a.startDate.localeCompare(b.startDate));
 
         function hebrewNumberToLetters(num, isYear = false) {
             if (num <= 0) return '';
@@ -841,20 +870,65 @@
             return letters;
         }
 
-        function getHebrewDateParts(date) {
-            const parts = hebrewPartsFormatter.formatToParts(date);
-            return {
-                day: parseInt(parts.find(p => p.type === 'day').value, 10),
-                month: parts.find(p => p.type === 'month').value,
-                year: parseInt(parts.find(p => p.type === 'year').value, 10)
-            };
+        function formatDateISO(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
         }
 
-        (function initCurrentHebrewMonth() {
-            const info = getHebrewDateParts(today);
-            currentHebrewYear = info.year;
-            currentHebrewMonth = info.month;
-        })();
+        function getHebrewDatePartsFromLookup(date) {
+            const dateStr = formatDateISO(date);
+            let match = null;
+
+            for (const item of hebrewMonthsSorted) {
+                if (item.startDate <= dateStr) {
+                    match = item;
+                } else {
+                    break;
+                }
+            }
+
+            if (!match) {
+                return { day: 1, month: 'תשרי', year: 5786 };
+            }
+
+            const start = parseLocalDate(match.startDate);
+            const day = Math.floor((date - start) / 86400000) + 1;
+            return { day, month: match.month, year: match.year };
+        }
+
+        function getHebrewDateParts(date) {
+            if (hebrewCalendarSupported && hebrewPartsFormatter) {
+                try {
+                    const parts = hebrewPartsFormatter.formatToParts(date);
+                    const dayPart = parts.find((part) => part.type === 'day');
+                    const monthPart = parts.find((part) => part.type === 'month');
+                    const yearPart = parts.find((part) => part.type === 'year');
+
+                    if (dayPart && monthPart && yearPart && !gregorianMonthNames.has(monthPart.value)) {
+                        return {
+                            day: parseInt(dayPart.value, 10),
+                            month: monthPart.value,
+                            year: parseInt(yearPart.value, 10)
+                        };
+                    }
+                } catch (e) {
+                    // fallback below
+                }
+            }
+
+            return getHebrewDatePartsFromLookup(date);
+        }
+
+        try {
+            const initInfo = getHebrewDateParts(today);
+            currentHebrewYear = initInfo.year;
+            currentHebrewMonth = initInfo.month;
+        } catch (e) {
+            currentHebrewYear = 5786;
+            currentHebrewMonth = 'אב';
+        }
 
         function parseLocalDate(dateStr) {
             const [year, month, day] = dateStr.split('-').map(Number);
@@ -907,6 +981,11 @@
                 return new Date(cached.start.getTime());
             }
 
+            const lookupDate = hebrewMonthStarts[cacheKey];
+            if (lookupDate) {
+                return parseLocalDate(lookupDate);
+            }
+
             const searchStart = new Date(hebrewYear - 3761, 8, 1);
             const searchEnd = new Date(hebrewYear - 3760, 10, 30);
 
@@ -957,22 +1036,28 @@
         }
 
         function getAdjacentHebrewMonth(hebrewYear, hebrewMonthName, direction) {
+            const currentIndex = hebrewMonthsSorted.findIndex(
+                (item) => item.year === hebrewYear && item.month === hebrewMonthName
+            );
+
+            if (currentIndex !== -1) {
+                const nextIndex = currentIndex + direction;
+                if (nextIndex >= 0 && nextIndex < hebrewMonthsSorted.length) {
+                    const next = hebrewMonthsSorted[nextIndex];
+                    return { year: next.year, month: next.month };
+                }
+            }
+
             const range = getHebrewMonthRange(hebrewYear, hebrewMonthName);
             if (!range.start) {
                 const fallback = new Date(today.getTime());
                 fallback.setDate(fallback.getDate() + (direction > 0 ? 30 : -30));
-                return getHebrewMonthInfo(fallback);
+                return getHebrewDateParts(fallback);
             }
 
             const pivot = new Date(range.start.getTime());
-
-            if (direction > 0) {
-                pivot.setDate(pivot.getDate() + range.dayCount);
-            } else {
-                pivot.setDate(pivot.getDate() - 1);
-            }
-
-            return getHebrewMonthInfo(pivot);
+            pivot.setDate(pivot.getDate() + (direction > 0 ? range.dayCount : -1));
+            return getHebrewDateParts(pivot);
         }
 
         function compareHebrewMonths(aYear, aMonth, bYear, bMonth) {
@@ -1005,13 +1090,18 @@
         function iterateHebrewMonths(startYear, startMonth, endYear, endMonth, callback) {
             let year = startYear;
             let month = startMonth;
+            let steps = 0;
 
-            while (true) {
+            while (steps < 48) {
                 callback(year, month);
                 if (year === endYear && month === endMonth) break;
+
                 const next = getAdjacentHebrewMonth(year, month, 1);
+                if (next.year === year && next.month === month) break;
+
                 year = next.year;
                 month = next.month;
+                steps++;
             }
         }
 
