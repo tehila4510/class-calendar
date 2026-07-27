@@ -318,7 +318,18 @@
             scroll-behavior: smooth;
             padding-left: 4px;
             margin-right: -4px;
-            min-height: 0;
+            min-height: 420px;
+        }
+
+        .calendar-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            min-height: 420px;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--blue-mid);
         }
 
         .calendar-scroll-area::-webkit-scrollbar { width: 8px; }
@@ -883,9 +894,21 @@
             return { year: parts.year, month: parts.month };
         }
 
+        const hebrewMonthRangeCache = new Map();
+
+        function getHebrewMonthCacheKey(hebrewYear, hebrewMonthName) {
+            return `${hebrewYear}::${hebrewMonthName}`;
+        }
+
         function findFirstDayOfHebrewMonth(hebrewYear, hebrewMonthName) {
-            const searchStart = new Date(hebrewYear - 3762, 0, 1);
-            const searchEnd = new Date(hebrewYear - 3758, 11, 31);
+            const cacheKey = getHebrewMonthCacheKey(hebrewYear, hebrewMonthName);
+            const cached = hebrewMonthRangeCache.get(cacheKey);
+            if (cached && cached.start) {
+                return new Date(cached.start.getTime());
+            }
+
+            const searchStart = new Date(hebrewYear - 3761, 8, 1);
+            const searchEnd = new Date(hebrewYear - 3760, 10, 30);
 
             for (let d = new Date(searchStart); d <= searchEnd; d.setDate(d.getDate() + 1)) {
                 const parts = getHebrewDateParts(new Date(d.getTime()));
@@ -897,9 +920,21 @@
         }
 
         function getHebrewMonthRange(hebrewYear, hebrewMonthName) {
+            const cacheKey = getHebrewMonthCacheKey(hebrewYear, hebrewMonthName);
+            if (hebrewMonthRangeCache.has(cacheKey)) {
+                const cached = hebrewMonthRangeCache.get(cacheKey);
+                return {
+                    start: cached.start ? new Date(cached.start.getTime()) : null,
+                    end: cached.end ? new Date(cached.end.getTime()) : null,
+                    dayCount: cached.dayCount
+                };
+            }
+
             const start = findFirstDayOfHebrewMonth(hebrewYear, hebrewMonthName);
             if (!start) {
-                return { start: null, end: null, dayCount: 0 };
+                const emptyRange = { start: null, end: null, dayCount: 0 };
+                hebrewMonthRangeCache.set(cacheKey, emptyRange);
+                return emptyRange;
             }
 
             let end = new Date(start.getTime());
@@ -916,11 +951,19 @@
                 dayCount++;
             }
 
-            return { start, end, dayCount };
+            const range = { start, end, dayCount };
+            hebrewMonthRangeCache.set(cacheKey, range);
+            return range;
         }
 
         function getAdjacentHebrewMonth(hebrewYear, hebrewMonthName, direction) {
             const range = getHebrewMonthRange(hebrewYear, hebrewMonthName);
+            if (!range.start) {
+                const fallback = new Date(today.getTime());
+                fallback.setDate(fallback.getDate() + (direction > 0 ? 30 : -30));
+                return getHebrewMonthInfo(fallback);
+            }
+
             const pivot = new Date(range.start.getTime());
 
             if (direction > 0) {
@@ -933,11 +976,17 @@
         }
 
         function compareHebrewMonths(aYear, aMonth, bYear, bMonth) {
-            if (aYear !== bYear) return aYear - bYear;
-            const aStart = findFirstDayOfHebrewMonth(aYear, aMonth);
-            const bStart = findFirstDayOfHebrewMonth(bYear, bMonth);
-            if (!aStart || !bStart) return 0;
-            return aStart.getTime() - bStart.getTime();
+            const aRange = getHebrewMonthRange(aYear, aMonth);
+            const bRange = getHebrewMonthRange(bYear, bMonth);
+            if (!aRange.start || !bRange.start) return 0;
+            return aRange.start.getTime() - bRange.start.getTime();
+        }
+
+        function cssEscape(value) {
+            if (window.CSS && typeof CSS.escape === 'function') {
+                return CSS.escape(value);
+            }
+            return String(value).replace(/["\\]/g, '\\$&');
         }
 
         function formatGregorianRangeForHebrewMonth(start, end) {
@@ -1356,7 +1405,7 @@
             const scrollArea = document.getElementById('calendarScrollArea');
             const sections = Array.from(scrollArea.querySelectorAll('.month-section'));
             const target = scrollArea.querySelector(
-                `[data-hebrew-year="${hebrewYear}"][data-hebrew-month="${CSS.escape(hebrewMonth)}"]`
+                `[data-hebrew-year="${hebrewYear}"][data-hebrew-month="${cssEscape(hebrewMonth)}"]`
             );
             if (!target) return;
 
@@ -1401,39 +1450,48 @@
 
         function renderCalendar() {
             const scrollArea = document.getElementById('calendarScrollArea');
-            let targetYear = currentHebrewYear;
-            let targetMonth = currentHebrewMonth;
+            scrollArea.innerHTML = '<div class="calendar-loading">טוענת לוח... 📅</div>';
 
-            if (!hasInitialScroll) {
-                const todayInfo = getHebrewMonthInfo(today);
-                targetYear = todayInfo.year;
-                targetMonth = todayInfo.month;
-                currentHebrewYear = targetYear;
-                currentHebrewMonth = targetMonth;
+            try {
+                let targetYear = currentHebrewYear;
+                let targetMonth = currentHebrewMonth;
+
+                if (!hasInitialScroll) {
+                    const todayInfo = getHebrewMonthInfo(today);
+                    targetYear = todayInfo.year;
+                    targetMonth = todayInfo.month;
+                    currentHebrewYear = targetYear;
+                    currentHebrewMonth = targetMonth;
+                }
+
+                const { startYear, startMonth, endYear, endMonth } = getCalendarHebrewMonthRange();
+                const fragment = document.createDocumentFragment();
+
+                iterateHebrewMonths(startYear, startMonth, endYear, endMonth, (year, month) => {
+                    fragment.appendChild(buildHebrewMonthSection(year, month));
+                });
+
+                scrollArea.innerHTML = '';
+                scrollArea.appendChild(fragment);
+
+                updateStickyHeader(targetYear, targetMonth);
+                setupScrollHeaderSync();
+
+                const scrollToTarget = () => scrollToHebrewMonthSection(targetYear, targetMonth, 'auto');
+                requestAnimationFrame(() => {
+                    scrollToTarget();
+                    requestAnimationFrame(scrollToTarget);
+                });
+
+                if (!hasInitialScroll) {
+                    hasInitialScroll = true;
+                }
+
+                renderSidebarEvents();
+            } catch (error) {
+                console.error(error);
+                scrollArea.innerHTML = '<div class="calendar-loading" style="color:#b45309;">לא הצלחנו לטעון את הלוח. רענני את הדף (F5).</div>';
             }
-
-            const { startYear, startMonth, endYear, endMonth } = getCalendarHebrewMonthRange();
-
-            scrollArea.innerHTML = '';
-
-            iterateHebrewMonths(startYear, startMonth, endYear, endMonth, (year, month) => {
-                scrollArea.appendChild(buildHebrewMonthSection(year, month));
-            });
-
-            updateStickyHeader(targetYear, targetMonth);
-            setupScrollHeaderSync();
-
-            const scrollToTarget = () => scrollToHebrewMonthSection(targetYear, targetMonth, 'auto');
-            requestAnimationFrame(() => {
-                scrollToTarget();
-                requestAnimationFrame(scrollToTarget);
-            });
-
-            if (!hasInitialScroll) {
-                hasInitialScroll = true;
-            }
-
-            renderSidebarEvents();
         }
 
         function changeMonth(direction) {
@@ -1649,22 +1707,26 @@
         }
 
         async function initApp() {
-            showRandomQuote();
-
-            events = loadEventsFromStorage();
-            renderCalendar();
-
-            if (!usesGoogleSheets()) return;
-
-            const banner = document.getElementById('floatingBanner');
-            banner.innerText = '☁️ טוענת שמחות מהענן...';
-
-            const loadedFromCloud = await loadEventsFromGoogleInBackground();
-            if (loadedFromCloud) {
+            try {
+                showRandomQuote();
+                events = loadEventsFromStorage();
                 renderCalendar();
-            }
 
-            showRandomQuote();
+                if (!usesGoogleSheets()) return;
+
+                const banner = document.getElementById('floatingBanner');
+                banner.innerText = '☁️ טוענת שמחות מהענן...';
+
+                const loadedFromCloud = await loadEventsFromGoogleInBackground();
+                if (loadedFromCloud) {
+                    renderCalendar();
+                }
+
+                showRandomQuote();
+            } catch (error) {
+                console.error(error);
+                document.getElementById('floatingBanner').innerText = 'משהו נתקע בטעינה – נסי F5';
+            }
         }
 
         initApp();
