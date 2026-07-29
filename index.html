@@ -1195,7 +1195,7 @@
             <div class="action-btns">
                 <button class="btn-primary" onclick="openModal()">+ עוד שמחה! (כי למה לא)</button>
                 <button class="btn-gold" onclick="openAllEventsModal()">💍 כל החתונות – הרשימה הרשמית</button>
-                <button class="btn-chat" id="chatToggleBtn" onclick="toggleChatPanel()">💬 קיר ברכות כיתתי</button>
+                <button class="btn-chat" id="chatToggleBtn" onclick="toggleChatPanel()">💬 צאט שלנו</button>
             </div>
 
             <div class="events-title">
@@ -1228,10 +1228,10 @@
             <div class="calendar-scroll-area" id="calendarScrollArea"></div>
         </div>
 
-        <aside class="chat-panel" id="chatPanel" aria-label="קיר ברכות כיתתי">
+        <aside class="chat-panel" id="chatPanel" aria-label="צאט שלנו">
             <div class="chat-panel-inner">
                 <div class="chat-panel-header">
-                    <h3>💬 קיר ברכות</h3>
+                    <h3>💬 הצאט שלנו</h3>
                     <div class="chat-panel-header-actions">
                         <button type="button" class="chat-panel-icon-btn" id="chatFullscreenBtn" onclick="toggleChatFullscreen()" title="הרחבה למסך מלא">⛶</button>
                         <button type="button" class="chat-panel-close" onclick="closeChatPanel()" title="סגירה">✕</button>
@@ -1254,7 +1254,7 @@
                     </div>
                 </div>
                 <div class="chat-messages" id="chatMessages">
-                    <div class="chat-empty">טוענת ברכות...</div>
+                    <div class="chat-empty">טוענת הודעות...</div>
                 </div>
                 <div class="chat-status" id="chatStatus"></div>
                 <div class="chat-compose">
@@ -1270,7 +1270,7 @@
                     </div>
                 </div>
                 <div class="chat-panel-actions">
-                    <button class="btn-save" id="sendChatBtn" onclick="sendChatMessage()">שלחי ברכה! 🎉</button>
+                    <button class="btn-save" id="sendChatBtn" onclick="sendChatMessage()">שלחי! 🎉</button>
                 </div>
             </div>
         </aside>
@@ -2174,8 +2174,8 @@
             if (!chatMessages.length) {
                 container.innerHTML = `
                     <div class="chat-empty">
-                        עדיין אין ברכות כאן 💬<br>
-                        תהיי הראשונה שכותבת מזל טוב לכיתה!
+                        עדיין אין הודעות כאן 💬<br>
+                        תהיי הראשונה שכותבת לכיתה!
                     </div>
                 `;
                 return;
@@ -2222,7 +2222,7 @@
             const { silent = false, scrollToBottom = false } = options;
 
             if (!silent) {
-                setChatStatus('טוענת ברכות...');
+                setChatStatus('טוענת הודעות...');
             }
 
             let loadedFromCloud = false;
@@ -2301,7 +2301,7 @@
             const container = document.getElementById('mainContainer');
             if (btn) {
                 btn.classList.toggle('active', isOpen);
-                btn.innerText = isOpen ? '✕ סגרי את הצאט' : '💬  צאט כיתתי';
+                btn.innerText = isOpen ? '✕ סגרי את הצאט' : '💬 צאט שלנו';
             }
             if (container) {
                 container.classList.toggle('chat-open', isOpen);
@@ -2459,20 +2459,20 @@
             await openChatPanel();
         }
 
-        async function toggleChatPanel() {
+        function sendChatMessage() {
             const authorInput = document.getElementById('chatAuthorInput');
             const textInput = document.getElementById('chatTextInput');
             const author = authorInput.value.trim().slice(0, 40);
             const text = textInput.value.trim().slice(0, 500);
 
             if (!author) {
-                alert('רגע! כתבי את השם שלך כדי שידעו ממי הברכה 💕');
+                alert('רגע! כתבי את השם שלך כדי שידעו ממי ההודעה 💕');
                 authorInput.focus();
                 return;
             }
 
             if (!text) {
-                alert('אי אפשר לשלוח ברכה ריקה 😄');
+                alert('אי אפשר לשלוח הודעה ריקה 😄');
                 textInput.focus();
                 return;
             }
