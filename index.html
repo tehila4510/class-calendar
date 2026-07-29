@@ -856,55 +856,6 @@
             width: 100%;
         }
 
-        .chat-setup-banner {
-            display: none;
-            background: linear-gradient(135deg, #fffbeb, #fef3c7);
-            border: 1px solid #fcd34d;
-            border-radius: 14px;
-            padding: 14px;
-            font-size: 12px;
-            line-height: 1.6;
-            color: #92400e;
-        }
-
-        .chat-setup-banner.visible {
-            display: block;
-        }
-
-        .chat-setup-banner strong {
-            display: block;
-            font-size: 13px;
-            margin-bottom: 6px;
-        }
-
-        .chat-setup-banner ol {
-            margin: 8px 18px 10px 0;
-            padding: 0;
-        }
-
-        .chat-setup-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: 8px;
-        }
-
-        .chat-setup-actions button {
-            border: none;
-            border-radius: 10px;
-            padding: 8px 12px;
-            font-size: 12px;
-            font-weight: 700;
-            cursor: pointer;
-            background: #0284c7;
-            color: white;
-        }
-
-        .chat-setup-actions button.secondary {
-            background: #f1f5f9;
-            color: #475569;
-        }
-
         .chat-messages {
             flex: 1;
             min-height: 0;
@@ -1238,21 +1189,6 @@
                     </div>
                 </div>
                 <p class="chat-panel-subtitle">מקום אחד לכולן — מזל טוב, התרגשות ובדיחות לפני השמחות ✨</p>
-                <div class="chat-setup-banner" id="chatSetupBanner">
-                    <strong>⚙️ צעד אחרון — חיבור ל-Google Sheets</strong>
-                    כדי שכל הבנות יראו את אותן ברכות, צריך לעדכן את Apps Script (פעם אחת):
-                    <ol>
-                        <li>פתחי את Google Sheet → <b>Extensions → Apps Script</b></li>
-                        <li>החליפי את כל הקוד בקוד מהכפתור למטה</li>
-                        <li>שמרי (Ctrl+S)</li>
-                        <li><b>Deploy → Manage deployments → Edit → New version → Deploy</b></li>
-                        <li>רענני את האתר ובדקי שוב</li>
-                    </ol>
-                    <div class="chat-setup-actions">
-                        <button type="button" onclick="copyAppsScriptCode()">📋 העתיקי קוד Apps Script</button>
-                        <button type="button" class="secondary" onclick="recheckChatBackend()">🔄 בדקי שוב</button>
-                    </div>
-                </div>
                 <div class="chat-messages" id="chatMessages">
                     <div class="chat-empty">טוענת הודעות...</div>
                 </div>
@@ -1283,7 +1219,7 @@
             <input type="hidden" id="editEventIdInput" value="">
             <label>מי חוגגת ומה חוגגים? 🎊</label>
             <input type="text" id="eventTitleInput" placeholder="למשל: 💍 חתונה תהילה אלוש (עם כוכבית!)">
-            <label>מתי? (לועזי, כי ככה עובד Google Calendar) 📅</label>
+            <label>מתי? 📅</label>
             <input type="date" id="eventDateInput" onchange="updateHebrewDateHint()">
             <div class="hebrew-date-hint" id="hebrewDateHint"></div>
             <label>באיזו שעה מתחילים לרקוד? 💃</label>
@@ -1730,7 +1666,6 @@
         // הדביקי כאן את כתובת ה-Web App מ-Google Apps Script (Deploy → Web app)
         // כשהכתובת ריקה – הנתונים נשמרים רק ב-localStorage (לשימוש מקומי)
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwOvGtdwDX6_LnjkadzGD1JW7m0uXqctJ1MW90lMRS5UP8NuNuaLr9Bjkz0KG9mzDn4vQ/exec';
-        const APPS_SCRIPT_CODE_URL = 'https://raw.githubusercontent.com/tehila4510/class-calendar/main/google-apps-script/Code.gs';
 
         const EVENTS_STORAGE_KEY = 'class_calendar_events';
         const MESSAGES_STORAGE_KEY = 'class_calendar_messages';
@@ -1748,7 +1683,6 @@
         let chatPollTimer = null;
         let lastRenderedChatSignature = '';
         let chatCloudSupported = null;
-        let cachedAppsScriptCode = '';
         let isChatFullscreen = false;
 
         const defaultEvents = [
@@ -1888,15 +1822,15 @@
 
         function getGoogleErrorMessage(error) {
             if (error.name === 'AbortError') {
-                return 'השמירה לקחה יותר מדי זמן. בדקי חיבור לאינטרנט ונסי שוב.';
+                return 'זה לקח יותר מדי זמן. בדקי חיבור לאינטרנט ונסי שוב.';
             }
             if (error.message === 'DEPLOY_ACCESS') {
-                return 'הפריסה לא מוגדרת נכון. ב-Apps Script: פריסה → מי יכול לגשת → "כל אחד".';
+                return 'לא הצלחנו להתחבר. נסי שוב בעוד רגע.';
             }
             if (location.protocol === 'file:') {
-                return 'פתיחה ישירה מהקובץ חוסמת שמירה ל-Google. העלי ל-GitHub Pages או פתחי דרך שרת (לא file://).';
+                return 'פתיחה מהקובץ לא עובדת — פתחי דרך הקישור הרשמי של האתר.';
             }
-            return 'לא הצלחנו לשמור 😕 נסי שוב בעוד רגע.';
+            return 'משהו לא עבד 😕 נסי שוב בעוד רגע.';
         }
 
         function setSaveButtonLoading(isLoading) {
@@ -1929,18 +1863,9 @@
             return data;
         }
 
-        function updateChatSetupBanner() {
-            const banner = document.getElementById('chatSetupBanner');
-            if (!banner) return;
-
-            const shouldShow = usesGoogleSheets() && chatCloudSupported === false;
-            banner.classList.toggle('visible', shouldShow);
-        }
-
         async function checkChatBackendSupport() {
             if (!usesGoogleSheets()) {
                 chatCloudSupported = false;
-                updateChatSetupBanner();
                 return false;
             }
 
@@ -1952,39 +1877,7 @@
                 chatCloudSupported = false;
             }
 
-            updateChatSetupBanner();
             return chatCloudSupported;
-        }
-
-        async function recheckChatBackend() {
-            setChatStatus('בודקת חיבור...');
-            const supported = await checkChatBackendSupport();
-
-            if (supported) {
-                setChatStatus('מחובר! מתעדכן אוטומטית כל 20 שניות 💕', true);
-                await loadChatMessages({ scrollToBottom: true });
-                startChatPolling();
-                return;
-            }
-
-            setChatStatus('עדיין לא מחובר – עקבי אחרי ההוראות למעלה');
-        }
-
-        async function copyAppsScriptCode() {
-            try {
-                if (!cachedAppsScriptCode) {
-                    const response = await fetch(APPS_SCRIPT_CODE_URL);
-                    if (!response.ok) {
-                        throw new Error('FETCH_FAILED');
-                    }
-                    cachedAppsScriptCode = await response.text();
-                }
-
-                await navigator.clipboard.writeText(cachedAppsScriptCode);
-                alert('הקוד הועתק! 📋\n\nעכשיו:\n1. Apps Script → הדביקי (Ctrl+V)\n2. שמרי\n3. Deploy → New version');
-            } catch (e) {
-                alert('לא הצלחנו להעתיק אוטומטית.\n\nפתחי את הקובץ google-apps-script/Code.gs ב-GitHub והעתיקי משם.');
-            }
         }
 
         function escapeHtml(text) {
@@ -2099,15 +1992,13 @@
                     confirmOptimisticChatMessage(optimisticMessage.id, data);
                     chatCloudSupported = true;
                     saveMessagesToStorage();
-                    updateChatSetupBanner();
                     lastRenderedChatSignature = '';
                     renderChatMessages({ scrollToBottom: true });
 
-                    // משיכה שקטה אחרי שמירה — תופסת הודעות שבנות אחרות שלחו באותו רגע
                     await loadChatMessages({ silent: true, scrollToBottom: true });
 
                     if (isChatPanelOpen()) {
-                        setChatStatus('נשמר בענן! מתעדכן כל 12 שניות 💕', true);
+                        setChatStatus('נשלח! 💕', true);
                     }
                 })
                 .catch((cloudError) => {
@@ -2115,12 +2006,11 @@
                     chatCloudSupported = false;
                     markOptimisticChatMessageFailed(optimisticMessage.id);
                     saveMessagesToStorage();
-                    updateChatSetupBanner();
                     lastRenderedChatSignature = '';
                     renderChatMessages({ scrollToBottom: true });
 
                     if (isChatPanelOpen()) {
-                        setChatStatus('לא נשמר בענן – נסי שוב בעוד רגע');
+                        setChatStatus('לא הצלחנו לשלוח – נסי שוב');
                     }
                 });
         }
@@ -2186,8 +2076,8 @@
                     <div class="chat-bubble-author">${escapeHtml(msg.author)}</div>
                     <div class="chat-bubble-text">${escapeHtml(msg.text)}</div>
                     <div class="chat-bubble-time">${escapeHtml(formatChatTimestamp(msg.timestamp))}</div>
-                    ${msg.pending ? '<div class="chat-bubble-pending-label">שומרת בענן...</div>' : ''}
-                    ${msg.failed ? '<div class="chat-bubble-pending-label" style="color:#b45309;">לא נשמר בענן – נסי שוב</div>' : ''}
+                    ${msg.pending ? '<div class="chat-bubble-pending-label">עוד רגע...</div>' : ''}
+                    ${msg.failed ? '<div class="chat-bubble-pending-label" style="color:#b45309;">לא נשלח – נסי שוב</div>' : ''}
                 </div>
             `).join('');
 
@@ -2245,22 +2135,20 @@
                     chatMessages = loadMessagesFromStorage();
                 }
 
-                updateChatSetupBanner();
                 renderChatMessages({ scrollToBottom });
 
                 if (loadedFromCloud) {
-                    setChatStatus('מתעדכן אוטומטית כל 12 שניות 💕', true);
+                    setChatStatus('💕 הצאט פעיל', true);
                 } else if (usesGoogleSheets()) {
-                    setChatStatus('לא הצלחנו לטעון מהענן – בדקי חיבור או לחצי "בדקי שוב"');
+                    setChatStatus('לא הצלחנו לטעון – בדקי חיבור');
                 } else {
-                    setChatStatus('שמור מקומית במחשב הזה');
+                    setChatStatus('');
                 }
             } catch (e) {
                 console.warn('Chat load failed:', e);
                 chatMessages = loadMessagesFromStorage();
-                updateChatSetupBanner();
                 renderChatMessages({ scrollToBottom });
-                setChatStatus('לא הצלחנו לטעון – מציגה גיבוי מקומי');
+                setChatStatus('לא הצלחנו לטעון – נסי שוב');
             }
         }
 
@@ -2437,8 +2325,13 @@
             startChatPolling();
 
             setTimeout(() => {
+                const authorInput = document.getElementById('chatAuthorInput');
                 const textInput = document.getElementById('chatTextInput');
-                if (textInput) textInput.focus();
+                if (authorInput && !authorInput.value.trim()) {
+                    authorInput.focus();
+                } else if (textInput) {
+                    textInput.focus();
+                }
             }, 320);
         }
 
@@ -2487,7 +2380,7 @@
             renderChatMessages({ scrollToBottom: true });
 
             if (usesGoogleSheets()) {
-                setChatStatus('נשלח! שומר בענן ברקע... 💕', true);
+                setChatStatus('נשלח! 💕', true);
                 persistChatMessageToCloud(optimisticMessage);
                 return;
             }
@@ -2502,7 +2395,7 @@
             saveMessagesToStorage();
             lastRenderedChatSignature = '';
             renderChatMessages({ scrollToBottom: true });
-            setChatStatus('נשמר מקומית במחשב הזה');
+            setChatStatus('נשלח! 💕', true);
         }
 
         async function loadEventsFromGoogleInBackground() {
@@ -3019,7 +2912,7 @@
                 }
 
                 const banner = document.getElementById('floatingBanner');
-                banner.innerText = '☁️ מסנכרנת עם Google Sheets...';
+                banner.innerText = '✨ טוענת את הלוח...';
 
                 const loadedFromCloud = await loadEventsFromGoogleInBackground();
                 if (loadedFromCloud) {
