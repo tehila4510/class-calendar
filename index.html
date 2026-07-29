@@ -272,6 +272,10 @@
             box-shadow: 0 6px 20px rgba(245, 158, 11, 0.18);
         }
 
+        .event-card.clickable {
+            cursor: pointer;
+        }
+
         .event-name {
             font-weight: 800;
             font-size: 13px;
@@ -506,6 +510,17 @@
         .day-cell.has-event {
             background: linear-gradient(145deg, #fffdf4, #f8fafc);
             border-color: #fcd34d;
+        }
+
+        .day-cell.highlighted {
+            animation: day-highlight-pulse 1.6s ease 2;
+            border-color: var(--gold-mid);
+            box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.45);
+        }
+
+        @keyframes day-highlight-pulse {
+            0%, 100% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.45); }
+            50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0.2); }
         }
 
         .day-cell.saturday {
@@ -825,6 +840,10 @@
         body.chat-fullscreen-active .floating-banner {
             opacity: 0;
             pointer-events: none;
+        }
+
+        .container.chat-fullscreen-mode.chat-open {
+            max-width: 1320px;
         }
 
         .chat-panel-actions {
@@ -2231,7 +2250,7 @@
             const container = document.getElementById('mainContainer');
             if (btn) {
                 btn.classList.toggle('active', isOpen);
-                btn.innerText = isOpen ? '✕ סגרי קיר ברכות' : '💬 קיר ברכות כיתתי';
+                btn.innerText = isOpen ? '✕ סגרי את הצאט' : '💬  צאט כיתתי';
             }
             if (container) {
                 container.classList.toggle('chat-open', isOpen);
@@ -2622,6 +2641,7 @@
                 const cell = document.createElement('div');
 
                 cell.className = 'day-cell';
+                cell.dataset.date = currentDate;
                 if (currentDate === todayStr) cell.classList.add('today');
                 if (hasEvent) cell.classList.add('has-event');
                 if (cellDate.getDay() === 6) cell.classList.add('saturday');
@@ -2668,6 +2688,25 @@
             const next = getAdjacentHebrewMonth(currentHebrewYear, currentHebrewMonth, direction);
             updateStickyHeader(next.year, next.month);
             scrollToHebrewMonthSection(next.year, next.month);
+        }
+
+        function highlightDayCell(dateStr) {
+            document.querySelectorAll('.day-cell.highlighted').forEach((cell) => {
+                cell.classList.remove('highlighted');
+            });
+            const cell = document.querySelector(`.day-cell[data-date="${cssEscape(dateStr)}"]`);
+            if (cell) {
+                cell.classList.add('highlighted');
+                setTimeout(() => cell.classList.remove('highlighted'), 3200);
+            }
+        }
+
+        function navigateToEventDate(dateStr) {
+            const date = parseLocalDate(dateStr);
+            const { year, month } = getHebrewMonthInfo(date);
+            updateStickyHeader(year, month);
+            scrollToHebrewMonthSection(year, month, 'smooth');
+            setTimeout(() => highlightDayCell(dateStr), 400);
         }
 
         function setupScrollHeaderSync() {
@@ -2755,7 +2794,8 @@
 
             sortedEvents.forEach((ev) => {
                 const card = document.createElement('div');
-                card.className = 'event-card';
+                card.className = 'event-card clickable';
+                card.title = 'לחצי כדי לראות בלוח';
                 card.innerHTML = `
                     <div class="event-info">
                         <div class="event-name">${ev.title}</div>
@@ -2772,6 +2812,10 @@
                         <button class="icon-btn" onclick="deleteEvent(${ev.id})" title="למחוק – בזהירות!">🗑️</button>
                     </div>
                 `;
+                card.onclick = (e) => {
+                    if (e.target.closest('.event-actions-btns')) return;
+                    navigateToEventDate(ev.date);
+                };
                 eventsList.appendChild(card);
             });
         }
