@@ -1085,23 +1085,134 @@
         @media (max-width: 900px) {
             .container { flex-direction: column; height: auto; }
             .container.chat-open { max-width: 100%; }
-            .sidebar { width: 100%; height: 500px; }
-            .calendar-main { height: auto; min-height: 520px; }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                min-height: 280px;
+                max-height: 55vh;
+                padding: 16px;
+                gap: 8px;
+                order: 1;
+            }
+
+            .brand-title { font-size: 18px; }
+
+            .shared-notice {
+                font-size: 11px;
+                padding: 7px 10px;
+            }
+
+            .action-btns { gap: 6px; }
+
+            .btn-primary,
+            .btn-gold,
+            .btn-chat,
+            .btn-save {
+                padding: 8px 12px;
+                font-size: 12px;
+                border-radius: 10px;
+            }
+
+            .events-title {
+                font-size: 13px;
+                padding: 7px 10px;
+            }
+
+            .event-card { padding: 9px 10px; }
+            .event-name { font-size: 12px; }
+            .event-details { font-size: 10px; gap: 6px; }
+
+            .calendar-main {
+                order: 3;
+                height: auto;
+                min-height: 420px;
+                padding: 16px;
+            }
+
+            .calendar-header {
+                padding: 10px 14px;
+                margin-bottom: 10px;
+            }
+
+            .calendar-header h2 { font-size: 16px; gap: 8px; }
+
+            .hebrew-month-badge {
+                font-size: 10px;
+                padding: 4px 10px;
+            }
+
+            .nav-btn {
+                width: 34px;
+                height: 34px;
+                font-size: 14px;
+            }
+
+            .calendar-scroll-area {
+                overflow: hidden;
+                scroll-snap-type: none;
+                min-height: 320px;
+                touch-action: none;
+                overscroll-behavior: contain;
+            }
+
+            .month-section {
+                display: none;
+                height: 100%;
+                min-height: 320px;
+                scroll-snap-align: none;
+            }
+
+            .month-section.active {
+                display: flex;
+            }
+
+            .chat-panel {
+                order: 2;
+            }
+
+            .chat-panel:not(.open) {
+                height: 0 !important;
+                min-height: 0;
+                padding: 0;
+                margin: 0;
+                border: none;
+                overflow: hidden;
+            }
+
             .chat-panel.open {
                 width: 100%;
-                order: 3;
-                height: 520px;
+                height: 420px;
             }
+
             .chat-panel.fullscreen {
                 inset: 12px;
                 padding: 18px;
                 border-radius: 22px;
             }
+
             .modal-content.wide { width: 100%; }
             body { padding: 16px; }
+
+            .floating-banner {
+                font-size: 13px;
+                padding: 10px 18px;
+                margin-bottom: 14px;
+            }
         }
 
         @media (max-width: 600px) {
+            .sidebar { max-height: 50vh; }
+
+            .btn-primary,
+            .btn-gold,
+            .btn-chat {
+                padding: 7px 10px;
+                font-size: 11px;
+            }
+
+            .chat-panel.open { height: 380px; }
+
             .chat-panel.fullscreen {
                 inset: 0;
                 border-radius: 0;
@@ -1115,6 +1226,10 @@
             .emoji-picker {
                 width: min(260px, calc(100vw - 48px));
             }
+
+            .calendar-main { min-height: 360px; }
+            .calendar-scroll-area { min-height: 280px; }
+            .month-section.active { min-height: 280px; }
         }
     </style>
 </head>
@@ -2565,14 +2680,36 @@
             return section;
         }
 
+        function isCompactCalendarView() {
+            return window.matchMedia('(max-width: 900px)').matches;
+        }
+
+        function setActiveMonthSection(hebrewYear, hebrewMonth) {
+            const scrollArea = document.getElementById('calendarScrollArea');
+            scrollArea.querySelectorAll('.month-section').forEach((section) => {
+                section.classList.remove('active');
+            });
+            const target = scrollArea.querySelector(
+                `[data-hebrew-year="${hebrewYear}"][data-hebrew-month="${cssEscape(hebrewMonth)}"]`
+            );
+            if (target) {
+                target.classList.add('active');
+            }
+        }
+
         function scrollToHebrewMonthSection(hebrewYear, hebrewMonth, behavior = 'smooth') {
             const scrollArea = document.getElementById('calendarScrollArea');
-            const sections = Array.from(scrollArea.querySelectorAll('.month-section'));
             const target = scrollArea.querySelector(
                 `[data-hebrew-year="${hebrewYear}"][data-hebrew-month="${cssEscape(hebrewMonth)}"]`
             );
             if (!target) return;
 
+            if (isCompactCalendarView()) {
+                setActiveMonthSection(hebrewYear, hebrewMonth);
+                return;
+            }
+
+            const sections = Array.from(scrollArea.querySelectorAll('.month-section'));
             const index = sections.indexOf(target);
             if (index === -1) return;
 
@@ -2613,6 +2750,8 @@
 
             scrollArea.dataset.syncBound = 'true';
             scrollArea.addEventListener('scroll', () => {
+                if (isCompactCalendarView()) return;
+
                 const sections = scrollArea.querySelectorAll('.month-section');
                 if (!sections.length) return;
 
@@ -2629,6 +2768,18 @@
                     updateStickyHeader(year, month);
                 }
             }, { passive: true });
+        }
+
+        if (!window.calendarViewResizeBound) {
+            window.calendarViewResizeBound = true;
+            window.addEventListener('resize', () => {
+                if (!currentHebrewYear || !currentHebrewMonth) return;
+                if (isCompactCalendarView()) {
+                    setActiveMonthSection(currentHebrewYear, currentHebrewMonth);
+                } else {
+                    scrollToHebrewMonthSection(currentHebrewYear, currentHebrewMonth, 'auto');
+                }
+            });
         }
 
         function renderCalendar() {
