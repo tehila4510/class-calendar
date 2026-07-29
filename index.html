@@ -826,6 +826,24 @@
             text-align: left;
         }
 
+        .chat-bubble-pending {
+            opacity: 0.82;
+            border-right-color: #f9a8d4;
+            animation: chatPendingPulse 1.4s ease-in-out infinite;
+        }
+
+        @keyframes chatPendingPulse {
+            0%, 100% { opacity: 0.82; }
+            50% { opacity: 1; }
+        }
+
+        .chat-bubble-pending-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #db2777;
+            margin-top: 6px;
+        }
+
         .chat-compose {
             display: flex;
             flex-direction: column;
@@ -1726,12 +1744,52 @@
             return list
                 .filter((msg) => msg && typeof msg.text === 'string' && msg.text.trim())
                 .map((msg, index) => ({
-                    id: Number(msg.id) || index + 1,
+                    id: msg.pending ? String(msg.id) : (Number(msg.id) || index + 1),
                     author: String(msg.author || 'מישהי מהכיתה').trim().slice(0, 40) || 'מישהי מהכיתה',
                     text: String(msg.text).trim().slice(0, 500),
-                    timestamp: msg.timestamp || new Date().toISOString()
+                    timestamp: msg.timestamp || new Date().toISOString(),
+                    pending: Boolean(msg.pending)
                 }))
                 .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        }
+
+        function mergeChatMessagesWithPending(serverMessages, currentMessages) {
+            const pendingMessages = currentMessages.filter((msg) => msg.pending);
+            if (!pendingMessages.length) {
+                return normalizeChatMessages(serverMessages);
+            }
+
+            const confirmed = normalizeChatMessages(serverMessages);
+            const stillPending = pendingMessages.filter((pending) => {
+                return !confirmed.some((saved) =>
+                    saved.author === pending.author &&
+                    saved.text === pending.text &&
+                    Math.abs(new Date(saved.timestamp) - new Date(pending.timestamp)) < 120000
+                );
+            });
+
+            return normalizeChatMessages([...confirmed, ...stillPending]);
+        }
+
+        function createOptimisticChatMessage(author, text) {
+            return {
+                id: `pending-${Date.now()}`,
+                author,
+                text,
+                timestamp: new Date().toISOString(),
+                pending: true
+            };
+        }
+
+        function removeOptimisticChatMessage(messageId) {
+            chatMessages = chatMessages.filter((msg) => String(msg.id) !== String(messageId));
+        }
+
+        function markOptimisticChatMessageFailed(messageId) {
+            chatMessages = chatMessages.map((msg) => {
+                if (String(msg.id) !== String(messageId)) return msg;
+                return { ...msg, pending: false, failed: true };
+            });
         }
 
         function loadMessagesFromStorage() {
@@ -1791,10 +1849,12 @@
             }
 
             container.innerHTML = chatMessages.map((msg) => `
-                <div class="chat-bubble">
+                <div class="chat-bubble${msg.pending ? ' chat-bubble-pending' : ''}">
                     <div class="chat-bubble-author">${escapeHtml(msg.author)}</div>
                     <div class="chat-bubble-text">${escapeHtml(msg.text)}</div>
                     <div class="chat-bubble-time">${escapeHtml(formatChatTimestamp(msg.timestamp))}</div>
+                    ${msg.pending ? '<div class="chat-bubble-pending-label">שולחת...</div>' : ''}
+                    ${msg.failed ? '<div class="chat-bubble-pending-label" style="color:#b45309;">לא נשמר בענן – נסי שוב</div>' : ''}
                 </div>
             `).join('');
 
@@ -1837,7 +1897,8 @@
             try {
                 if (usesGoogleSheets()) {
                     try {
-                        chatMessages = await fetchMessagesFromGoogle();
+                        const serverMessages = await fetchMessagesFromGoogle();
+                        chatMessages = mergeChatMessagesWithPending(serverMessages, chatMessages);
                         chatCloudSupported = true;
                         saveMessagesToStorage();
                         loadedFromCloud = true;
@@ -1956,9 +2017,17 @@
                 return;
             }
 
+            localStorage.setItem(AUTHOR_NAME_STORAGE_KEY, author);
+
+            const optimisticMessage = createOptimisticChatMessage(author, text);
+            textInput.value = '';
+            chatMessages.push(optimisticMessage);
+            lastRenderedChatSignature = '';
+            renderChatMessages({ scrollToBottom: true });
+            setChatStatus('שולחת... ✨', true);
+
             isChatSending = true;
             setSendChatButtonLoading(true);
-            localStorage.setItem(AUTHOR_NAME_STORAGE_KEY, author);
 
             try {
                 if (usesGoogleSheets()) {
@@ -1968,23 +2037,26 @@
                             author,
                             text
                         });
-                        chatMessages = await fetchMessagesFromGoogle();
+                        const serverMessages = await fetchMessagesFromGoogle();
+                        chatMessages = mergeChatMessagesWithPending(serverMessages, chatMessages);
                         chatCloudSupported = true;
                         saveMessagesToStorage();
                         updateChatSetupBanner();
+                        lastRenderedChatSignature = '';
+                        renderChatMessages({ scrollToBottom: true });
+                        setChatStatus('נשלח! מתעדכן אוטומטית כל 20 שניות 💕', true);
                     } catch (cloudError) {
                         console.warn('Chat cloud send failed:', cloudError);
                         chatCloudSupported = false;
-                        chatMessages.push({
-                            id: getNextLocalMessageId(),
-                            author,
-                            text,
-                            timestamp: new Date().toISOString()
-                        });
+                        markOptimisticChatMessageFailed(optimisticMessage.id);
                         saveMessagesToStorage();
                         updateChatSetupBanner();
+                        lastRenderedChatSignature = '';
+                        renderChatMessages({ scrollToBottom: true });
+                        setChatStatus('לא נשמר בענן – בדקי חיבור ונסי שוב');
                     }
                 } else {
+                    removeOptimisticChatMessage(optimisticMessage.id);
                     chatMessages.push({
                         id: getNextLocalMessageId(),
                         author,
@@ -1992,20 +2064,14 @@
                         timestamp: new Date().toISOString()
                     });
                     saveMessagesToStorage();
-                }
-
-                textInput.value = '';
-                lastRenderedChatSignature = '';
-                renderChatMessages({ scrollToBottom: true });
-
-                if (usesGoogleSheets() && chatCloudSupported) {
-                    setChatStatus('נשלח! מתעדכן אוטומטית כל 20 שניות 💕', true);
-                } else if (usesGoogleSheets()) {
-                    setChatStatus('לא נשמר בענן – בדקי חיבור ונסי שוב');
-                } else {
+                    lastRenderedChatSignature = '';
+                    renderChatMessages({ scrollToBottom: true });
                     setChatStatus('נשמר מקומית במחשב הזה');
                 }
             } catch (e) {
+                markOptimisticChatMessageFailed(optimisticMessage.id);
+                lastRenderedChatSignature = '';
+                renderChatMessages({ scrollToBottom: true });
                 alert(getGoogleErrorMessage(e));
                 console.error(e);
             } finally {
