@@ -187,6 +187,30 @@
             flex-shrink: 0;
         }
 
+        .btn-action {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-action-icon {
+            display: none;
+            line-height: 1;
+            font-weight: 900;
+        }
+
+        .btn-action-text--short {
+            display: none;
+        }
+
+        .day-cell-events {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-height: 0;
+        }
+
         .btn-primary,
         .btn-gold,
         .btn-chat,
@@ -510,6 +534,7 @@
         .day-cell.has-event {
             background: linear-gradient(145deg, #fffdf4, #f8fafc);
             border-color: #fcd34d;
+            cursor: pointer;
         }
 
         .day-cell.highlighted {
@@ -580,6 +605,42 @@
             overflow: hidden;
             text-overflow: ellipsis;
             box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+            cursor: pointer;
+        }
+
+        .event-view-card {
+            background: linear-gradient(135deg, #fffdf4, #ffffff);
+            border: 1px solid #fde68a;
+            border-right: 4px solid var(--gold-mid);
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .event-view-card + .event-view-card {
+            margin-top: 10px;
+        }
+
+        .event-view-name {
+            font-size: 18px;
+            font-weight: 900;
+            color: #78350f;
+            line-height: 1.35;
+        }
+
+        .event-view-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 14px;
+            color: var(--gold-deep);
+            font-weight: 700;
+        }
+
+        .event-view-details .hebrew-date-line {
+            font-size: 13px;
         }
 
         .modal {
@@ -1103,7 +1164,33 @@
                 padding: 7px 10px;
             }
 
-            .action-btns { gap: 6px; }
+            .action-btns {
+                flex-direction: row;
+                gap: 8px;
+            }
+
+            .btn-action {
+                flex: 1;
+                flex-direction: column;
+                gap: 4px;
+                min-width: 0;
+                padding: 10px 6px !important;
+            }
+
+            .btn-action-icon {
+                display: block;
+                font-size: 20px;
+            }
+
+            .btn-action-text--full {
+                display: none;
+            }
+
+            .btn-action-text--short {
+                display: block;
+                font-size: 11px;
+                font-weight: 800;
+            }
 
             .btn-primary,
             .btn-gold,
@@ -1151,9 +1238,36 @@
             .calendar-scroll-area {
                 overflow: hidden;
                 scroll-snap-type: none;
-                min-height: 320px;
-                touch-action: none;
+                min-height: 360px;
                 overscroll-behavior: contain;
+            }
+
+            .days-grid { gap: 5px; }
+
+            .day-cell {
+                min-height: 78px;
+                padding: 6px;
+            }
+
+            .day-number { font-size: 14px; }
+            .hebrew-day-number { font-size: 9px; padding: 1px 4px; }
+
+            .day-cell-events {
+                flex: 1;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-y;
+                overscroll-behavior: contain;
+            }
+
+            .cell-event {
+                font-size: 9px;
+                padding: 3px 5px;
+                white-space: normal;
+                word-break: break-word;
+                overflow: visible;
+                text-overflow: unset;
+                line-height: 1.25;
             }
 
             .month-section {
@@ -1204,12 +1318,12 @@
         @media (max-width: 600px) {
             .sidebar { max-height: 50vh; }
 
-            .btn-primary,
-            .btn-gold,
-            .btn-chat {
-                padding: 7px 10px;
-                font-size: 11px;
+            .btn-action {
+                padding: 8px 4px !important;
             }
+
+            .btn-action-icon { font-size: 18px; }
+            .btn-action-text--short { font-size: 10px; }
 
             .chat-panel.open { height: 380px; }
 
@@ -1259,9 +1373,21 @@
             </div>
 
             <div class="action-btns">
-                <button class="btn-primary" onclick="openModal()">+ עוד שמחה! (כי למה לא)</button>
-                <button class="btn-gold" onclick="openAllEventsModal()">💍 כל החתונות – הרשימה הרשמית</button>
-                <button class="btn-chat" id="chatToggleBtn" onclick="toggleChatPanel()">💬 צאט שלנו</button>
+                <button class="btn-primary btn-action" onclick="openModal()" title="הוספת שמחה">
+                    <span class="btn-action-icon" aria-hidden="true">+</span>
+                    <span class="btn-action-text btn-action-text--full">+ עוד שמחה! (כי למה לא)</span>
+                    <span class="btn-action-text btn-action-text--short">חדש</span>
+                </button>
+                <button class="btn-gold btn-action" onclick="openAllEventsModal()" title="כל החתונות">
+                    <span class="btn-action-icon" aria-hidden="true">💍</span>
+                    <span class="btn-action-text btn-action-text--full">💍 כל החתונות – הרשימה הרשמית</span>
+                    <span class="btn-action-text btn-action-text--short">הכל</span>
+                </button>
+                <button class="btn-chat btn-action" id="chatToggleBtn" onclick="toggleChatPanel()" title="צאט שלנו">
+                    <span class="btn-action-icon" id="chatToggleIcon" aria-hidden="true">💬</span>
+                    <span class="btn-action-text btn-action-text--full" id="chatToggleLabelFull">💬 צאט שלנו</span>
+                    <span class="btn-action-text btn-action-text--short" id="chatToggleLabelShort">צאט</span>
+                </button>
             </div>
 
             <div class="events-title">
@@ -1325,6 +1451,17 @@
                 </div>
             </div>
         </aside>
+    </div>
+
+    <div class="modal" id="eventViewModal">
+        <div class="modal-content">
+            <h3 id="eventViewTitle">🎉 השמחה</h3>
+            <p class="modal-subtitle">פרטי השמחה — לקריאה בלבד ✨</p>
+            <div id="eventViewBody"></div>
+            <div class="modal-actions">
+                <button class="btn-save" onclick="closeEventViewModal()">סגרתי 🥂</button>
+            </div>
+        </div>
     </div>
 
     <div class="modal" id="eventModal">
@@ -2302,9 +2439,21 @@
         function updateChatToggleButton(isOpen) {
             const btn = document.getElementById('chatToggleBtn');
             const container = document.getElementById('mainContainer');
+            const icon = document.getElementById('chatToggleIcon');
+            const labelFull = document.getElementById('chatToggleLabelFull');
+            const labelShort = document.getElementById('chatToggleLabelShort');
+
             if (btn) {
                 btn.classList.toggle('active', isOpen);
-                btn.innerText = isOpen ? '✕ סגרי את הצאט' : '💬 צאט שלנו';
+            }
+            if (icon) {
+                icon.textContent = isOpen ? '✕' : '💬';
+            }
+            if (labelFull) {
+                labelFull.textContent = isOpen ? '✕ סגרי את הצאט' : '💬 צאט שלנו';
+            }
+            if (labelShort) {
+                labelShort.textContent = isOpen ? 'סגור' : 'צאט';
             }
             if (container) {
                 container.classList.toggle('chat-open', isOpen);
@@ -2646,7 +2795,7 @@
                 events.forEach((ev) => {
                     if (ev.date === currentDate) {
                         hasEvent = true;
-                        eventsHtml += `<div class="cell-event" title="${ev.title}">${ev.title}</div>`;
+                        eventsHtml += `<div class="cell-event" title="${escapeHtml(ev.title)}">${escapeHtml(ev.title)}</div>`;
                     }
                 });
 
@@ -2659,9 +2808,12 @@
                 if (hasEvent) cell.classList.add('has-event');
                 if (cellDate.getDay() === 6) cell.classList.add('saturday');
 
-                cell.onclick = (e) => {
-                    if (e.target.classList.contains('cell-event')) return;
-                    openModalForDate(currentDate);
+                cell.onclick = () => {
+                    if (hasEvent) {
+                        openEventViewForDate(currentDate);
+                    } else {
+                        openModalForDate(currentDate);
+                    }
                 };
 
                 cell.innerHTML = `
@@ -2669,7 +2821,7 @@
                         <div class="day-number">${day}</div>
                         <div class="hebrew-day-number" title="${formatHebrewFullDate(cellDate)}">${hebrewDay}</div>
                     </div>
-                    <div>${eventsHtml}</div>
+                    <div class="day-cell-events">${eventsHtml}</div>
                 `;
                 daysGrid.appendChild(cell);
 
@@ -2867,6 +3019,38 @@
                 };
                 eventsList.appendChild(card);
             });
+        }
+
+        function openEventViewForDate(dateStr) {
+            const dayEvents = events.filter((ev) => ev.date === dateStr);
+            if (!dayEvents.length) {
+                openModalForDate(dateStr);
+                return;
+            }
+
+            const titleEl = document.getElementById('eventViewTitle');
+            const bodyEl = document.getElementById('eventViewBody');
+
+            titleEl.innerText = dayEvents.length === 1
+                ? '🎉 השמחה'
+                : `🎉 ${dayEvents.length} שמחות ביום הזה`;
+
+            bodyEl.innerHTML = dayEvents.map((ev) => `
+                <div class="event-view-card">
+                    <div class="event-view-name">${escapeHtml(ev.title)}</div>
+                    <div class="event-view-details">
+                        <span>📅 ${formatGregorianDisplay(ev.date)}</span>
+                        <span class="hebrew-date-line">${formatHebrewFullDateFromString(ev.date)}</span>
+                        <span>⏰ ${escapeHtml(ev.time)}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('eventViewModal').style.display = 'flex';
+        }
+
+        function closeEventViewModal() {
+            document.getElementById('eventViewModal').style.display = 'none';
         }
 
         function openModal() {
