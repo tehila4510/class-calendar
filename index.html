@@ -180,6 +180,17 @@
             padding: 10px 12px;
         }
 
+        .notice-short {
+            display: none;
+        }
+
+        .events-panel {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            min-height: 0;
+        }
+
         .action-btns {
             display: flex;
             flex-direction: column;
@@ -1144,90 +1155,177 @@
         }
 
         @media (max-width: 900px) {
-            .container { flex-direction: column; height: auto; }
+            .container { flex-direction: column; height: auto; gap: 12px; }
             .container.chat-open { max-width: 100%; }
+
+            body {
+                padding: 10px;
+                justify-content: flex-start;
+            }
+
+            .floating-banner {
+                font-size: 11px;
+                line-height: 1.35;
+                padding: 7px 12px;
+                margin-bottom: 8px;
+            }
+
+            .sidebar,
+            .calendar-main,
+            .chat-panel.open {
+                border-radius: 20px;
+            }
 
             .sidebar {
                 width: 100%;
                 height: auto;
-                max-height: 68vh;
+                max-height: 75vh;
                 min-height: 0;
-                padding: 12px;
-                gap: 6px;
+                padding: 10px;
+                gap: 8px;
                 order: 1;
             }
 
             .brand-title {
-                font-size: 16px;
+                font-size: 17px;
                 line-height: 1.2;
                 flex-shrink: 0;
+                margin-bottom: -2px;
             }
 
             .shared-notice {
                 font-size: 10px;
                 line-height: 1.35;
-                padding: 5px 8px;
+                padding: 6px 10px;
                 flex-shrink: 0;
+                border-radius: 10px;
             }
 
+            .notice-long { display: none; }
+            .notice-short { display: inline; }
+
             .action-btns {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr);
-                gap: 8px;
+                display: flex;
+                gap: 6px;
                 flex-shrink: 0;
                 align-items: stretch;
+                background: #f1f5f9;
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+                padding: 5px;
             }
 
             .btn-action {
                 flex: unset;
-                width: 100%;
+                width: auto;
                 flex-direction: row;
                 gap: 6px;
                 min-width: 0;
-                min-height: 38px;
-                padding: 8px 10px !important;
+                min-height: 40px;
+                padding: 0 12px !important;
+                border-radius: 10px !important;
+                box-shadow: none !important;
+            }
+
+            .btn-primary.btn-action,
+            .btn-gold.btn-action {
+                flex: 0 0 42px;
+                width: 42px;
+                padding: 0 !important;
+            }
+
+            .btn-chat.btn-action {
+                flex: 1;
+                min-width: 0;
             }
 
             .btn-action-icon {
                 display: block;
-                font-size: 16px;
+                font-size: 17px;
                 flex-shrink: 0;
+                line-height: 1;
             }
 
             .btn-action-text--full {
                 display: none;
             }
 
+            .btn-primary.btn-action .btn-action-text--short,
+            .btn-gold.btn-action .btn-action-text--short {
+                display: none;
+            }
+
             .btn-action-text--short {
                 display: block;
-                font-size: 11px;
+                font-size: 12px;
                 font-weight: 800;
                 line-height: 1;
                 white-space: nowrap;
             }
 
-            .btn-primary,
-            .btn-gold,
-            .btn-chat,
-            .btn-save {
-                border-radius: 10px;
+            .events-panel {
+                flex: 1;
+                min-height: 0;
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+                overflow: hidden;
+                background: #f8fafc;
             }
 
             .events-title {
                 font-size: 12px;
-                padding: 5px 8px;
+                padding: 8px 12px;
                 flex-shrink: 0;
+                border-radius: 0;
+                margin: 0;
             }
 
             .events-list {
                 flex: 1;
                 min-height: 0;
                 overflow-y: auto;
+                padding: 8px;
+                gap: 8px;
             }
 
-            .event-card { padding: 8px 10px; }
-            .event-name { font-size: 12px; }
-            .event-details { font-size: 10px; gap: 6px; }
+            .event-card {
+                padding: 10px 10px 10px 8px;
+                border-radius: 12px;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .event-info {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .event-name {
+                font-size: 13px;
+                line-height: 1.3;
+            }
+
+            .event-details {
+                font-size: 10px;
+                gap: 4px 8px;
+                margin-top: 3px;
+            }
+
+            .event-actions-btns {
+                flex-shrink: 0;
+                gap: 4px;
+            }
+
+            .icon-btn {
+                width: 26px;
+                height: 26px;
+                font-size: 11px;
+                border-radius: 7px;
+            }
+
+            .event-card:hover {
+                transform: none;
+            }
 
             .calendar-main {
                 order: 3;
@@ -1327,32 +1425,31 @@
             }
 
             .modal-content.wide { width: 100%; }
-            body { padding: 16px; }
-
-            .floating-banner {
-                font-size: 12px;
-                padding: 8px 14px;
-                margin-bottom: 10px;
-            }
         }
 
         @media (max-width: 600px) {
-            .sidebar { max-height: 72vh; }
+            body { padding: 8px; }
+
+            .sidebar { max-height: 78vh; }
+
+            .brand-title { font-size: 16px; }
 
             .btn-action {
-                min-height: 36px;
-                padding: 7px 8px !important;
-                gap: 5px;
+                min-height: 38px;
             }
 
-            .btn-action-icon { font-size: 15px; }
-            .btn-action-text--short { font-size: 10px; }
+            .btn-primary.btn-action,
+            .btn-gold.btn-action {
+                flex: 0 0 38px;
+                width: 38px;
+            }
 
-            .brand-title { font-size: 15px; }
+            .btn-action-icon { font-size: 16px; }
+            .btn-action-text--short { font-size: 11px; }
 
             .shared-notice {
                 font-size: 9px;
-                padding: 4px 7px;
+                padding: 5px 8px;
             }
 
             .chat-panel.open {
@@ -1403,7 +1500,8 @@
             <div class="brand-title">✨ השמחות שלנו ✨</div>
 
             <div class="shared-notice">
-                📢 הלוח הזה משותף לכל מי שיש לה את הקישור — שימי רק שמחות כיתתיות, לא דברים אישיים!
+                <span class="notice-long">📢 הלוח הזה משותף לכל מי שיש לה את הקישור — שימי רק שמחות כיתתיות, לא דברים אישיים!</span>
+                <span class="notice-short">📢 שמחות כיתתיות בלבד — לא דברים אישיים</span>
             </div>
 
             <div class="action-btns">
@@ -1424,11 +1522,13 @@
                 </button>
             </div>
 
-            <div class="events-title">
-                <span>🥂 מי חוגגת בקרוב?</span>
+            <div class="events-panel">
+                <div class="events-title">
+                    <span>🥂 מי חוגגת בקרוב?</span>
+                </div>
+                
+                <div class="events-list" id="eventsList"></div>
             </div>
-            
-            <div class="events-list" id="eventsList"></div>
         </div>
 
         <div class="calendar-main">
