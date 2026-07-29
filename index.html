@@ -1735,7 +1735,7 @@
         const EVENTS_STORAGE_KEY = 'class_calendar_events';
         const MESSAGES_STORAGE_KEY = 'class_calendar_messages';
         const AUTHOR_NAME_STORAGE_KEY = 'class_calendar_author_name';
-        const CHAT_POLL_INTERVAL_MS = 20000;
+        const CHAT_POLL_INTERVAL_MS = 12000;
         const CHAT_EMOJIS = [
             '😊', '😍', '🥰', '😘', '🤗', '🥹', '😂', '🤣', '😭', '🙏',
             '❤️', '💕', '💖', '💗', '💓', '💝', '🫶', '🤍', '💛', '🧡',
@@ -1746,7 +1746,6 @@
 
         let chatMessages = [];
         let chatPollTimer = null;
-        let isChatSending = false;
         let lastRenderedChatSignature = '';
         let chatCloudSupported = null;
         let cachedAppsScriptCode = '';
@@ -2074,6 +2073,58 @@
             });
         }
 
+        function confirmOptimisticChatMessage(messageId, serverData) {
+            chatMessages = chatMessages.map((msg) => {
+                if (String(msg.id) !== String(messageId)) return msg;
+
+                const savedMessage = serverData.message || serverData;
+                return {
+                    id: Number(savedMessage.id) || msg.id,
+                    author: msg.author,
+                    text: msg.text,
+                    timestamp: savedMessage.timestamp || msg.timestamp,
+                    pending: false,
+                    failed: false
+                };
+            });
+        }
+
+        function persistChatMessageToCloud(optimisticMessage) {
+            sendMessageToGoogle({
+                action: 'addMessage',
+                author: optimisticMessage.author,
+                text: optimisticMessage.text
+            })
+                .then(async (data) => {
+                    confirmOptimisticChatMessage(optimisticMessage.id, data);
+                    chatCloudSupported = true;
+                    saveMessagesToStorage();
+                    updateChatSetupBanner();
+                    lastRenderedChatSignature = '';
+                    renderChatMessages({ scrollToBottom: true });
+
+                    // משיכה שקטה אחרי שמירה — תופסת הודעות שבנות אחרות שלחו באותו רגע
+                    await loadChatMessages({ silent: true, scrollToBottom: true });
+
+                    if (isChatPanelOpen()) {
+                        setChatStatus('נשמר בענן! מתעדכן כל 12 שניות 💕', true);
+                    }
+                })
+                .catch((cloudError) => {
+                    console.warn('Chat cloud send failed:', cloudError);
+                    chatCloudSupported = false;
+                    markOptimisticChatMessageFailed(optimisticMessage.id);
+                    saveMessagesToStorage();
+                    updateChatSetupBanner();
+                    lastRenderedChatSignature = '';
+                    renderChatMessages({ scrollToBottom: true });
+
+                    if (isChatPanelOpen()) {
+                        setChatStatus('לא נשמר בענן – נסי שוב בעוד רגע');
+                    }
+                });
+        }
+
         function loadMessagesFromStorage() {
             try {
                 const saved = localStorage.getItem(MESSAGES_STORAGE_KEY);
@@ -2135,7 +2186,7 @@
                     <div class="chat-bubble-author">${escapeHtml(msg.author)}</div>
                     <div class="chat-bubble-text">${escapeHtml(msg.text)}</div>
                     <div class="chat-bubble-time">${escapeHtml(formatChatTimestamp(msg.timestamp))}</div>
-                    ${msg.pending ? '<div class="chat-bubble-pending-label">שולחת...</div>' : ''}
+                    ${msg.pending ? '<div class="chat-bubble-pending-label">שומרת בענן...</div>' : ''}
                     ${msg.failed ? '<div class="chat-bubble-pending-label" style="color:#b45309;">לא נשמר בענן – נסי שוב</div>' : ''}
                 </div>
             `).join('');
@@ -2198,7 +2249,7 @@
                 renderChatMessages({ scrollToBottom });
 
                 if (loadedFromCloud) {
-                    setChatStatus('מתעדכן אוטומטית כל 20 שניות 💕', true);
+                    setChatStatus('מתעדכן אוטומטית כל 12 שניות 💕', true);
                 } else if (usesGoogleSheets()) {
                     setChatStatus('לא הצלחנו לטעון מהענן – בדקי חיבור או לחצי "בדקי שוב"');
                 } else {
@@ -2408,17 +2459,7 @@
             await openChatPanel();
         }
 
-        function setSendChatButtonLoading(isLoading) {
-            const btn = document.getElementById('sendChatBtn');
-            if (!btn) return;
-
-            btn.disabled = isLoading;
-            btn.innerText = isLoading ? 'שולחת... ⏳' : 'שלחי ברכה! 🎉';
-        }
-
-        async function sendChatMessage() {
-            if (isChatSending) return;
-
+        async function toggleChatPanel() {
             const authorInput = document.getElementById('chatAuthorInput');
             const textInput = document.getElementById('chatTextInput');
             const author = authorInput.value.trim().slice(0, 40);
@@ -2444,60 +2485,24 @@
             chatMessages.push(optimisticMessage);
             lastRenderedChatSignature = '';
             renderChatMessages({ scrollToBottom: true });
-            setChatStatus('שולחת... ✨', true);
 
-            isChatSending = true;
-            setSendChatButtonLoading(true);
-
-            try {
-                if (usesGoogleSheets()) {
-                    try {
-                        await sendMessageToGoogle({
-                            action: 'addMessage',
-                            author,
-                            text
-                        });
-                        const serverMessages = await fetchMessagesFromGoogle();
-                        chatMessages = mergeChatMessagesWithPending(serverMessages, chatMessages);
-                        chatCloudSupported = true;
-                        saveMessagesToStorage();
-                        updateChatSetupBanner();
-                        lastRenderedChatSignature = '';
-                        renderChatMessages({ scrollToBottom: true });
-                        setChatStatus('נשלח! מתעדכן אוטומטית כל 20 שניות 💕', true);
-                    } catch (cloudError) {
-                        console.warn('Chat cloud send failed:', cloudError);
-                        chatCloudSupported = false;
-                        markOptimisticChatMessageFailed(optimisticMessage.id);
-                        saveMessagesToStorage();
-                        updateChatSetupBanner();
-                        lastRenderedChatSignature = '';
-                        renderChatMessages({ scrollToBottom: true });
-                        setChatStatus('לא נשמר בענן – בדקי חיבור ונסי שוב');
-                    }
-                } else {
-                    removeOptimisticChatMessage(optimisticMessage.id);
-                    chatMessages.push({
-                        id: getNextLocalMessageId(),
-                        author,
-                        text,
-                        timestamp: new Date().toISOString()
-                    });
-                    saveMessagesToStorage();
-                    lastRenderedChatSignature = '';
-                    renderChatMessages({ scrollToBottom: true });
-                    setChatStatus('נשמר מקומית במחשב הזה');
-                }
-            } catch (e) {
-                markOptimisticChatMessageFailed(optimisticMessage.id);
-                lastRenderedChatSignature = '';
-                renderChatMessages({ scrollToBottom: true });
-                alert(getGoogleErrorMessage(e));
-                console.error(e);
-            } finally {
-                isChatSending = false;
-                setSendChatButtonLoading(false);
+            if (usesGoogleSheets()) {
+                setChatStatus('נשלח! שומר בענן ברקע... 💕', true);
+                persistChatMessageToCloud(optimisticMessage);
+                return;
             }
+
+            removeOptimisticChatMessage(optimisticMessage.id);
+            chatMessages.push({
+                id: getNextLocalMessageId(),
+                author,
+                text,
+                timestamp: new Date().toISOString()
+            });
+            saveMessagesToStorage();
+            lastRenderedChatSignature = '';
+            renderChatMessages({ scrollToBottom: true });
+            setChatStatus('נשמר מקומית במחשב הזה');
         }
 
         async function loadEventsFromGoogleInBackground() {

@@ -183,14 +183,11 @@ function listMessages_() {
 }
 
 function getNextMessageId_(sheet) {
-  const values = sheet.getDataRange().getValues();
-  if (values.length <= 1) return 1;
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return 1;
 
-  const ids = values.slice(1)
-    .map((row) => Number(row[0]))
-    .filter((id) => !isNaN(id));
-
-  return ids.length ? Math.max.apply(null, ids) + 1 : 1;
+  const lastId = Number(sheet.getRange(lastRow, 1).getValue());
+  return isNaN(lastId) ? lastRow : lastId + 1;
 }
 
 function addMessage_(params) {
@@ -201,11 +198,24 @@ function addMessage_(params) {
     return { success: false, error: 'Missing author or text' };
   }
 
-  const sheet = getMessagesSheet_();
-  const id = getNextMessageId_(sheet);
-  const timestamp = new Date().toISOString();
+  const lock = LockService.getScriptLock();
 
-  sheet.appendRow([id, author, text, timestamp]);
+  try {
+    lock.waitLock(10000);
 
-  return { success: true, id: id, timestamp: timestamp };
+    const sheet = getMessagesSheet_();
+    const id = getNextMessageId_(sheet);
+    const timestamp = new Date().toISOString();
+
+    sheet.appendRow([id, author, text, timestamp]);
+
+    return {
+      success: true,
+      id: id,
+      timestamp: timestamp,
+      message: { id: id, author: author, text: text, timestamp: timestamp }
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
