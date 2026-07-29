@@ -133,6 +133,11 @@
             max-width: 1320px;
             width: 100%;
             height: 690px;
+            transition: max-width 0.3s ease;
+        }
+
+        .container.chat-open {
+            max-width: 1700px;
         }
 
         .sidebar,
@@ -700,11 +705,95 @@
             box-shadow: 0 6px 20px rgba(219, 39, 119, 0.3);
         }
 
-        .modal-content.chat-modal {
-            width: 520px;
-            max-height: min(88vh, 720px);
-            padding: 28px;
+        .btn-chat.active {
+            background: linear-gradient(135deg, #fb7185, #be123c);
+            box-shadow: 0 6px 20px rgba(190, 18, 60, 0.35);
+        }
+
+        .chat-panel {
+            width: 0;
+            opacity: 0;
             overflow: hidden;
+            flex-shrink: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            border: 1px solid transparent;
+            border-radius: 28px;
+            box-shadow: none;
+            transition: width 0.3s ease, opacity 0.25s ease, padding 0.3s ease, border-color 0.3s ease;
+            padding: 0;
+            min-width: 0;
+        }
+
+        .chat-panel.open {
+            width: 360px;
+            opacity: 1;
+            padding: 22px;
+            border-color: #fbcfe8;
+            box-shadow: 0 15px 40px rgba(219, 39, 119, 0.12);
+        }
+
+        .chat-panel-inner {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 316px;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .chat-panel-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .chat-panel-header h3 {
+            color: #be185d;
+            font-size: 20px;
+            font-weight: 900;
+            line-height: 1.3;
+        }
+
+        .chat-panel-subtitle {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 600;
+            line-height: 1.5;
+            flex-shrink: 0;
+        }
+
+        .chat-panel-close {
+            background: #fdf2f8;
+            border: 1px solid #fbcfe8;
+            color: #be185d;
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 800;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+
+        .chat-panel-close:hover {
+            background: #fce7f3;
+            transform: scale(1.05);
+        }
+
+        .chat-panel-actions {
+            display: flex;
+            justify-content: stretch;
+            flex-shrink: 0;
+        }
+
+        .chat-panel-actions .btn-save {
+            width: 100%;
         }
 
         .chat-setup-banner {
@@ -758,8 +847,7 @@
 
         .chat-messages {
             flex: 1;
-            min-height: 280px;
-            max-height: 380px;
+            min-height: 0;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
@@ -879,6 +967,21 @@
 
         .chat-compose input {
             flex: 1;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            color: var(--ink);
+            padding: 12px 14px;
+            border-radius: 14px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s;
+            font-family: 'Heebo', sans-serif;
+        }
+
+        .chat-compose input:focus {
+            border-color: #ec4899;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.12);
         }
 
         .chat-status {
@@ -895,8 +998,14 @@
 
         @media (max-width: 900px) {
             .container { flex-direction: column; height: auto; }
+            .container.chat-open { max-width: 100%; }
             .sidebar { width: 100%; height: 500px; }
             .calendar-main { height: auto; min-height: 520px; }
+            .chat-panel.open {
+                width: 100%;
+                order: 3;
+                height: 520px;
+            }
             .modal-content.wide { width: 100%; }
             body { padding: 16px; }
         }
@@ -919,7 +1028,7 @@
         ✨ טוענת בדיחות ושמחות...
     </div>
 
-    <div class="container">
+    <div class="container" id="mainContainer">
         <div class="sidebar">
             <div class="brand-title">✨ השמחות שלנו ✨</div>
 
@@ -930,7 +1039,7 @@
             <div class="action-btns">
                 <button class="btn-primary" onclick="openModal()">+ עוד שמחה! (כי למה לא)</button>
                 <button class="btn-gold" onclick="openAllEventsModal()">💍 כל החתונות – הרשימה הרשמית</button>
-                <button class="btn-chat" onclick="openChatModal()">💬 קיר ברכות כיתתי</button>
+                <button class="btn-chat" id="chatToggleBtn" onclick="toggleChatPanel()">💬 קיר ברכות כיתתי</button>
             </div>
 
             <div class="events-title">
@@ -962,6 +1071,46 @@
 
             <div class="calendar-scroll-area" id="calendarScrollArea"></div>
         </div>
+
+        <aside class="chat-panel" id="chatPanel" aria-label="קיר ברכות כיתתי">
+            <div class="chat-panel-inner">
+                <div class="chat-panel-header">
+                    <h3>💬 קיר ברכות</h3>
+                    <button type="button" class="chat-panel-close" onclick="closeChatPanel()" title="סגירה">✕</button>
+                </div>
+                <p class="chat-panel-subtitle">מקום אחד לכולן — מזל טוב, התרגשות ובדיחות לפני השמחות ✨</p>
+                <div class="chat-setup-banner" id="chatSetupBanner">
+                    <strong>⚙️ צעד אחרון — חיבור ל-Google Sheets</strong>
+                    כדי שכל הבנות יראו את אותן ברכות, צריך לעדכן את Apps Script (פעם אחת):
+                    <ol>
+                        <li>פתחי את Google Sheet → <b>Extensions → Apps Script</b></li>
+                        <li>החליפי את כל הקוד בקוד מהכפתור למטה</li>
+                        <li>שמרי (Ctrl+S)</li>
+                        <li><b>Deploy → Manage deployments → Edit → New version → Deploy</b></li>
+                        <li>רענני את האתר ובדקי שוב</li>
+                    </ol>
+                    <div class="chat-setup-actions">
+                        <button type="button" onclick="copyAppsScriptCode()">📋 העתיקי קוד Apps Script</button>
+                        <button type="button" class="secondary" onclick="recheckChatBackend()">🔄 בדקי שוב</button>
+                    </div>
+                </div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="chat-empty">טוענת ברכות...</div>
+                </div>
+                <div class="chat-status" id="chatStatus"></div>
+                <div class="chat-compose">
+                    <div class="chat-compose-row">
+                        <input type="text" id="chatAuthorInput" placeholder="השם שלך (כדי שידעו ממי)" maxlength="40">
+                    </div>
+                    <div class="chat-compose-row">
+                        <textarea id="chatTextInput" placeholder="כתבי ברכה, מזל טוב, או סתם התרגשות... 💕" maxlength="500"></textarea>
+                    </div>
+                </div>
+                <div class="chat-panel-actions">
+                    <button class="btn-save" id="sendChatBtn" onclick="sendChatMessage()">שלחי ברכה! 🎉</button>
+                </div>
+            </div>
+        </aside>
     </div>
 
     <div class="modal" id="eventModal">
@@ -979,44 +1128,6 @@
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeModal()">לא עכשיו, תודה</button>
                 <button class="btn-save" id="saveEventBtn" onclick="saveEvent()">יאללה, שמרי! 🎉</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal" id="chatModal">
-        <div class="modal-content chat-modal">
-            <h3>💬 קיר ברכות כיתתי</h3>
-            <p class="modal-subtitle">מקום אחד לכולן — לכתוב מזל טוב, התרגשות, ובדיחות לפני השמחות ✨</p>
-            <div class="chat-setup-banner" id="chatSetupBanner">
-                <strong>⚙️ צעד אחרון — חיבור ל-Google Sheets</strong>
-                כדי שכל הבנות יראו את אותן ברכות, צריך לעדכן את Apps Script (פעם אחת):
-                <ol>
-                    <li>פתחי את Google Sheet → <b>Extensions → Apps Script</b></li>
-                    <li>החליפי את כל הקוד בקוד מהכפתור למטה</li>
-                    <li>שמרי (Ctrl+S)</li>
-                    <li><b>Deploy → Manage deployments → Edit → New version → Deploy</b></li>
-                    <li>רענני את האתר ובדקי שוב</li>
-                </ol>
-                <div class="chat-setup-actions">
-                    <button type="button" onclick="copyAppsScriptCode()">📋 העתיקי קוד Apps Script</button>
-                    <button type="button" class="secondary" onclick="recheckChatBackend()">🔄 בדקי שוב</button>
-                </div>
-            </div>
-            <div class="chat-messages" id="chatMessages">
-                <div class="chat-empty">טוענת ברכות...</div>
-            </div>
-            <div class="chat-status" id="chatStatus"></div>
-            <div class="chat-compose">
-                <div class="chat-compose-row">
-                    <input type="text" id="chatAuthorInput" placeholder="השם שלך (כדי שידעו ממי)" maxlength="40">
-                </div>
-                <div class="chat-compose-row">
-                    <textarea id="chatTextInput" placeholder="כתבי ברכה, מזל טוב, או סתם התרגשות... 💕" maxlength="500"></textarea>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn-cancel" onclick="closeChatModal()">סגרתי</button>
-                <button class="btn-save" id="sendChatBtn" onclick="sendChatMessage()">שלחי ברכה! 🎉</button>
             </div>
         </div>
     </div>
@@ -1944,7 +2055,7 @@
             if (!usesGoogleSheets()) return;
 
             chatPollTimer = setInterval(() => {
-                if (document.getElementById('chatModal').style.display !== 'flex') return;
+                if (!isChatPanelOpen()) return;
                 loadChatMessages({ silent: true });
             }, CHAT_POLL_INTERVAL_MS);
         }
@@ -1959,34 +2070,65 @@
             }
         }
 
-        async function openChatModal() {
-            document.getElementById('chatModal').style.display = 'flex';
-            rememberChatAuthorName();
-            lastRenderedChatSignature = '';
+        function isChatPanelOpen() {
+            return document.getElementById('chatPanel').classList.contains('open');
+        }
 
-            const textInput = document.getElementById('chatTextInput');
-            if (textInput && !textInput.dataset.boundEnter) {
-                textInput.dataset.boundEnter = 'true';
-                textInput.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter' && !event.shiftKey) {
-                        event.preventDefault();
-                        sendChatMessage();
-                    }
-                });
+        function updateChatToggleButton(isOpen) {
+            const btn = document.getElementById('chatToggleBtn');
+            const container = document.getElementById('mainContainer');
+            if (btn) {
+                btn.classList.toggle('active', isOpen);
+                btn.innerText = isOpen ? '✕ סגרי קיר ברכות' : '💬 קיר ברכות כיתתי';
             }
+            if (container) {
+                container.classList.toggle('chat-open', isOpen);
+            }
+        }
+
+        function bindChatTextInputEvents() {
+            const textInput = document.getElementById('chatTextInput');
+            if (!textInput || textInput.dataset.boundEnter === 'true') return;
+
+            textInput.dataset.boundEnter = 'true';
+            textInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    sendChatMessage();
+                }
+            });
+        }
+
+        async function openChatPanel() {
+            const panel = document.getElementById('chatPanel');
+            panel.classList.add('open');
+            updateChatToggleButton(true);
+            rememberChatAuthorName();
+            bindChatTextInputEvents();
+            lastRenderedChatSignature = '';
 
             await loadChatMessages({ scrollToBottom: true });
             startChatPolling();
 
             setTimeout(() => {
+                const textInput = document.getElementById('chatTextInput');
                 if (textInput) textInput.focus();
-            }, 150);
+            }, 320);
         }
 
-        function closeChatModal() {
-            document.getElementById('chatModal').style.display = 'none';
+        function closeChatPanel() {
+            document.getElementById('chatPanel').classList.remove('open');
+            updateChatToggleButton(false);
             stopChatPolling();
             setChatStatus('');
+        }
+
+        async function toggleChatPanel() {
+            if (isChatPanelOpen()) {
+                closeChatPanel();
+                return;
+            }
+            await openChatPanel();
         }
 
         function setSendChatButtonLoading(isLoading) {
