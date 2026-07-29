@@ -1832,28 +1832,41 @@
                 setChatStatus('טוענת ברכות...');
             }
 
+            let loadedFromCloud = false;
+
             try {
-                if (usesGoogleSheets() && chatCloudSupported) {
-                    chatMessages = await fetchMessagesFromGoogle();
-                    saveMessagesToStorage();
+                if (usesGoogleSheets()) {
+                    try {
+                        chatMessages = await fetchMessagesFromGoogle();
+                        chatCloudSupported = true;
+                        saveMessagesToStorage();
+                        loadedFromCloud = true;
+                    } catch (cloudError) {
+                        console.warn('Chat cloud load failed:', cloudError);
+                        chatCloudSupported = false;
+                        chatMessages = loadMessagesFromStorage();
+                    }
                 } else {
+                    chatCloudSupported = false;
                     chatMessages = loadMessagesFromStorage();
                 }
 
+                updateChatSetupBanner();
                 renderChatMessages({ scrollToBottom });
 
-                if (usesGoogleSheets() && chatCloudSupported) {
+                if (loadedFromCloud) {
                     setChatStatus('מתעדכן אוטומטית כל 20 שניות 💕', true);
                 } else if (usesGoogleSheets()) {
-                    setChatStatus('כרגע שמור מקומית — השלימי את ההתקנה למעלה לשיתוף עם הכיתה');
+                    setChatStatus('לא הצלחנו לטעון מהענן – בדקי חיבור או לחצי "בדקי שוב"');
                 } else {
                     setChatStatus('שמור מקומית במחשב הזה');
                 }
             } catch (e) {
                 console.warn('Chat load failed:', e);
                 chatMessages = loadMessagesFromStorage();
+                updateChatSetupBanner();
                 renderChatMessages({ scrollToBottom });
-                setChatStatus('לא הצלחנו לטעון מהענן – מציגה גיבוי מקומי');
+                setChatStatus('לא הצלחנו לטעון – מציגה גיבוי מקומי');
             }
         }
 
@@ -1868,8 +1881,6 @@
             stopChatPolling();
 
             if (!usesGoogleSheets()) return;
-
-            if (chatCloudSupported !== true) return;
 
             chatPollTimer = setInterval(() => {
                 if (document.getElementById('chatModal').style.display !== 'flex') return;
@@ -1887,13 +1898,10 @@
             }
         }
 
-        function openChatModal() {
+        async function openChatModal() {
             document.getElementById('chatModal').style.display = 'flex';
             rememberChatAuthorName();
-            updateChatSetupBanner();
             lastRenderedChatSignature = '';
-            loadChatMessages({ scrollToBottom: true });
-            startChatPolling();
 
             const textInput = document.getElementById('chatTextInput');
             if (textInput && !textInput.dataset.boundEnter) {
@@ -1905,6 +1913,9 @@
                     }
                 });
             }
+
+            await loadChatMessages({ scrollToBottom: true });
+            startChatPolling();
 
             setTimeout(() => {
                 if (textInput) textInput.focus();
@@ -1950,14 +1961,29 @@
             localStorage.setItem(AUTHOR_NAME_STORAGE_KEY, author);
 
             try {
-                if (usesGoogleSheets() && chatCloudSupported) {
-                    await sendMessageToGoogle({
-                        action: 'addMessage',
-                        author,
-                        text
-                    });
-                    chatMessages = await fetchMessagesFromGoogle();
-                    saveMessagesToStorage();
+                if (usesGoogleSheets()) {
+                    try {
+                        await sendMessageToGoogle({
+                            action: 'addMessage',
+                            author,
+                            text
+                        });
+                        chatMessages = await fetchMessagesFromGoogle();
+                        chatCloudSupported = true;
+                        saveMessagesToStorage();
+                        updateChatSetupBanner();
+                    } catch (cloudError) {
+                        console.warn('Chat cloud send failed:', cloudError);
+                        chatCloudSupported = false;
+                        chatMessages.push({
+                            id: getNextLocalMessageId(),
+                            author,
+                            text,
+                            timestamp: new Date().toISOString()
+                        });
+                        saveMessagesToStorage();
+                        updateChatSetupBanner();
+                    }
                 } else {
                     chatMessages.push({
                         id: getNextLocalMessageId(),
@@ -1975,7 +2001,7 @@
                 if (usesGoogleSheets() && chatCloudSupported) {
                     setChatStatus('נשלח! מתעדכן אוטומטית כל 20 שניות 💕', true);
                 } else if (usesGoogleSheets()) {
-                    setChatStatus('נשמר אצלך בלבד — השלימי התקנה למעלה כדי שכולן יראו');
+                    setChatStatus('לא נשמר בענן – בדקי חיבור ונסי שוב');
                 } else {
                     setChatStatus('נשמר מקומית במחשב הזה');
                 }
@@ -2468,7 +2494,7 @@
                 renderCalendar();
 
                 if (usesGoogleSheets()) {
-                    checkChatBackendSupport();
+                    await checkChatBackendSupport();
                 }
 
                 if (!usesGoogleSheets()) {
